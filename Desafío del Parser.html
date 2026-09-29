@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Desafío del Parser · Analizador Sintáctico Descendente</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+:root{--bg:#070a12;--panel:#101522;--panel2:#182035;--text:#f4f7ff;--muted:#9aa6bd;--cy:#6ee7ff;--pu:#a78bfa;--gr:#5ee7a5;--or:#ffb86b;--rd:#ff6b81;--line:rgba(255,255,255,.13);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f1f5fb;--panel:#fff;--panel2:#e8eef8;--text:#0e1424;--muted:#56617a;--cy:#0080a3;--pu:#6a4bd6;--gr:#0c9a5f;--or:#c26800;--rd:#d6304a;--line:rgba(14,20,36,.16)}}
+:root[data-theme="light"]{--bg:#f1f5fb;--panel:#fff;--panel2:#e8eef8;--text:#0e1424;--muted:#56617a;--cy:#0080a3;--pu:#6a4bd6;--gr:#0c9a5f;--or:#c26800;--rd:#d6304a;--line:rgba(14,20,36,.16)}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 12% 8%,color-mix(in srgb,var(--cy) 14%,transparent),transparent 34%),radial-gradient(circle at 88% 92%,color-mix(in srgb,var(--pu) 16%,transparent),transparent 36%),var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,Segoe UI,Arial,sans-serif;line-height:1.45}
+main{max-width:880px;margin:0 auto;padding:22px 18px 40px}
+code,kbd,.mono{font-family:'JetBrains Mono',Consolas,Monaco,monospace}
+code{background:color-mix(in srgb,var(--cy) 14%,transparent);color:var(--cy);padding:2px 7px;border-radius:7px;font-size:.92em;white-space:nowrap}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--cy);outline-offset:3px}
+.screen{display:none}.screen.on{display:block;animation:in .45s ease both}
+@keyframes in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.btn{border:0;border-radius:14px;padding:16px 30px;font-weight:700;font-size:1.1rem;background:linear-gradient(120deg,var(--cy),var(--pu));color:#06101c;transition:transform .15s,box-shadow .15s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px color-mix(in srgb,var(--cy) 35%,transparent)}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+/* inicio */
+#start{padding-top:6vh;text-align:left}
+h1{font-size:clamp(40px,8vw,76px);line-height:1;letter-spacing:-.04em;margin:0 0 18px}
+.lead{color:var(--muted);font-size:1.15rem;max-width:560px;margin:0 0 26px}
+.rule{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 26px;font-size:clamp(20px,4.4vw,34px);font-weight:700;line-height:1.7;margin-bottom:26px;display:inline-block;min-width:min(100%,430px)}
+.rule .nt{color:var(--cy)}.rule .t{color:var(--or)}.rule .e{color:var(--gr)}.rule .ar{color:var(--muted)}
+.rule span.l{display:inline-block;opacity:0;animation:in .5s ease forwards}
+.how{list-style:none;padding:0;margin:0 0 30px;display:grid;gap:10px;color:var(--muted)}
+.how li{padding-left:22px;position:relative}.how li:before{content:"";position:absolute;left:0;top:.55em;width:9px;height:9px;border-radius:50%;background:var(--cy)}
+.how b{color:var(--text)}
+.best{margin-top:18px;color:var(--muted)}.best b{color:var(--or)}
+/* HUD */
+.hud{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;margin-bottom:14px}
+.stat .k{display:block;font-size:.8rem;color:var(--muted)}
+.stat b{font-size:2rem;line-height:1;letter-spacing:-.02em}
+.stat.streak{text-align:right}.stat.streak b{font-size:1.5rem;display:inline-flex;gap:8px;align-items:center;justify-content:flex-end}
+.stat.streak small{font-size:.85rem;color:var(--or);font-family:'JetBrains Mono',monospace}
+#flame{font-style:normal;filter:grayscale(1);opacity:.45;transition:.3s;display:inline-block}
+.streak.on #flame{filter:none;opacity:1;animation:fl .8s ease-in-out infinite alternate}
+.streak.hot b{color:var(--or);text-shadow:0 0 22px var(--or)}
+@keyframes fl{to{transform:scale(1.3) rotate(-8deg)}}
+.bump{animation:bump .4s ease}
+@keyframes bump{40%{transform:scale(1.25);color:var(--gr)}}
+.chain{display:flex;align-items:center;justify-content:center}
+.chain i{width:14px;height:14px;border-radius:50%;background:var(--panel2);border:2px solid var(--line);flex:none;transition:.3s}
+.chain i+i{margin-left:14px;position:relative}
+.chain i+i:before{content:"";position:absolute;right:100%;top:50%;width:14px;height:2px;background:var(--line)}
+.chain i.ok{background:var(--gr);border-color:var(--gr)}.chain i.bad{background:var(--rd);border-color:var(--rd)}
+.chain i.cur{border-color:var(--cy);background:var(--cy);box-shadow:0 0 0 5px color-mix(in srgb,var(--cy) 25%,transparent);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 9px transparent}}
+.timer{position:relative;height:10px;background:var(--panel2);border-radius:99px;overflow:hidden;margin-bottom:6px}
+.timer i{position:absolute;inset:0;background:linear-gradient(90deg,var(--cy),var(--pu));transform-origin:left;border-radius:99px}
+.timer.low i{background:var(--rd);animation:pulse2 .5s infinite alternate}
+@keyframes pulse2{to{opacity:.55}}
+.tnum{text-align:right;font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:.85rem;margin-bottom:12px}
+/* tarjeta */
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:clamp(18px,4vw,32px);box-shadow:0 24px 60px rgba(0,0,0,.2)}
+.card.shake{animation:shake .4s}
+@keyframes shake{20%{transform:translateX(-9px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+.meta{margin:0 0 8px;color:var(--muted);font-size:.9rem}
+#qtext{font-size:clamp(21px,3.6vw,30px);line-height:1.25;margin:0 0 22px;letter-spacing:-.015em}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.opt{display:flex;gap:12px;align-items:flex-start;text-align:left;background:var(--panel2);border:2px solid var(--line);border-radius:16px;padding:14px;transition:transform .15s,border-color .15s,background .2s;font-size:1rem}
+.opt:not(:disabled):hover{transform:translateY(-3px);border-color:var(--cy)}
+.opt kbd{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--bg);border:1px solid var(--line);font-size:.85rem;font-weight:700}
+.opt.right{border-color:var(--gr);background:color-mix(in srgb,var(--gr) 16%,var(--panel2));animation:bump .45s}
+.opt.wrong{border-color:var(--rd);background:color-mix(in srgb,var(--rd) 16%,var(--panel2))}
+.opt:disabled{cursor:default;color:var(--text);opacity:1}.opt:disabled:not(.right):not(.wrong){opacity:.5}
+.fb{margin-top:20px;padding:18px;border-radius:16px;border:1px solid var(--line);background:var(--bg);animation:in .35s ease}
+.fb h3{margin:0 0 4px;font-size:1.25rem}.fb.g h3{color:var(--gr)}.fb.b h3{color:var(--rd)}
+.fb .pts{font-family:'JetBrains Mono',monospace;font-size:.88rem;color:var(--or);margin:0 0 10px}
+.fb p{margin:0 0 14px;color:var(--muted)}
+.pop{position:absolute;left:50%;top:-6px;font-weight:700;font-size:2.2rem;color:var(--gr);pointer-events:none;animation:pop 1.1s ease forwards;text-shadow:0 0 24px var(--gr)}
+@keyframes pop{from{opacity:1;transform:translate(-50%,0) scale(.7)}to{opacity:0;transform:translate(-50%,-70px) scale(1.2)}}
+/* final */
+#end{text-align:center;padding-top:4vh}
+.big{font-size:clamp(64px,16vw,130px);font-weight:700;letter-spacing:-.05em;line-height:1;background:linear-gradient(120deg,var(--cy),var(--pu));-webkit-background-clip:text;background-clip:text;color:transparent}
+.rank{font-size:clamp(22px,4vw,32px);margin:8px 0 22px;font-weight:700}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 auto 26px;max-width:560px}
+.stats div{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+.stats b{display:block;font-size:1.8rem}.stats span{color:var(--muted);font-size:.85rem}
+.acts{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+details{max-width:640px;margin:26px auto 0;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 18px}
+summary{cursor:pointer;font-weight:700}
+details li{margin:12px 0;color:var(--muted);font-size:.95rem}details li b{color:var(--text)}
+.tag-g{color:var(--gr)}.tag-b{color:var(--rd)}
+#cf{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9}
+#mute{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:12px;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:.85rem}
+@media(max-width:640px){.opts{grid-template-columns:1fr}.hud{grid-template-columns:auto auto;grid-template-areas:"s k" "c c"}.hud .chain{grid-area:c;order:3}.chain i+i{margin-left:10px}.chain i+i:before{width:10px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rule span.l{opacity:1}}
+</style>
+</head>
+<body>
+<button id="mute" aria-label="Activar o silenciar sonido">🔊 Sonido</button>
+<canvas id="cf"></canvas>
+<main>
+  <section id="start" class="screen on">
+    <h1>Desafío del Parser</h1>
+    <p class="lead">10 preguntas de selección múltiple sobre el analizador sintáctico descendente. Responde rápido y encadena aciertos para subir tu multiplicador.</p>
+    <div class="rule mono" aria-hidden="true">
+      <span class="l" style="animation-delay:.2s"><span class="nt">E</span> <span class="ar">→</span> <span class="nt">T E'</span></span><br>
+      <span class="l" style="animation-delay:.6s"><span class="nt">E'</span> <span class="ar">→</span> <span class="t">+</span> <span class="nt">T E'</span> <span class="ar">|</span> <span class="e">ε</span></span>
+    </div>
+    <ul class="how">
+      <li><b>100 puntos</b> por acierto, más hasta 50 por rapidez.</li>
+      <li>Cada acierto seguido sube el multiplicador hasta <b>x2</b>. Un fallo reinicia la racha.</li>
+      <li>Tienes <b>20 segundos</b> por pregunta. Atajos: teclas 1–4 o A–D.</li>
+    </ul>
+    <button class="btn" id="go">Empezar el desafío</button>
+    <p class="best" id="best"></p>
+  </section>
+
+  <section id="game" class="screen">
+    <div class="hud">
+      <div class="stat"><span class="k">Puntos</span><b id="score">0</b></div>
+      <div class="chain" id="chain" aria-label="Progreso"></div>
+      <div class="stat streak" id="sbox"><span class="k">Racha · próximo multiplicador</span><b><i id="flame">🔥</i><span id="streak">0</span><small id="mult">x1</small></b></div>
+    </div>
+    <div class="timer" id="timer"><i id="tbar"></i></div>
+    <div class="tnum"><span id="tnum">20</span> s</div>
+    <div class="card" id="card">
+      <p class="meta" id="meta"></p>
+      <h2 id="qtext"></h2>
+      <div class="opts" id="opts"></div>
+      <div class="fb" id="fb" hidden>
+        <h3 id="fbt"></h3><p class="pts" id="fbp"></p><p id="fbe"></p>
+        <button class="btn" id="next">Siguiente pregunta</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="end" class="screen">
+    <div class="big" id="fscore">0</div>
+    <div class="rank" id="rank"></div>
+    <div class="stats">
+      <div><b id="sOk">0/10</b><span>Aciertos</span></div>
+      <div><b id="sStreak">0</b><span>Mejor racha</span></div>
+      <div><b id="sBest">0</b><span>Récord personal</span></div>
+    </div>
+    <div class="acts"><button class="btn" id="again">Jugar de nuevo</button></div>
+    <details><summary>Repasar mis respuestas</summary><ol id="review"></ol></details>
+  </section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const RM=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const T=20000;
+/* La primera opción de cada pregunta es la correcta; se mezclan al jugar. */
+const Q=[
+{q:'En el análisis <b>Top-Down</b>, ¿por dónde empieza el parser?',o:['Por la regla principal, y va bajando a partes más específicas','Por los símbolos finales de la entrada, y sube hasta la regla principal','Por la mitad de la entrada, avanzando en ambas direcciones','Por el último símbolo, leyendo de derecha a izquierda'],e:'Top-Down significa de arriba hacia abajo: parte de la regla principal y desciende hacia elementos cada vez más específicos.'},
+{q:'En el <b>descenso recursivo</b>, ¿cómo se representan las reglas de la gramática?',o:['Cada regla se convierte en una función','Cada regla se convierte en una variable global','Todas las reglas se guardan en una tabla que consulta una sola función','Cada regla se convierte en un token de la entrada'],e:'Regla → función. expresion(), termino() y factor() siguen la estructura de la gramática y cada una reconoce una parte de la entrada.'},
+{q:'¿Por qué <code>E → E + T</code> es un problema para un parser descendente?',o:['Para resolver E vuelve a intentar resolver E: puede no avanzar y ciclarse','Porque usa el símbolo + que el parser no reconoce','Porque T siempre produce ε','Porque la regla no contiene ningún no terminal'],e:'Es recursividad a la izquierda: E → E → E… sin consumir ningún símbolo de la entrada.'},
+{q:'Al eliminar la recursividad a la izquierda de <code>E → E + T | T</code>, ¿qué gramática se obtiene?',o:['<code>E → T E\'</code> y <code>E\' → + T E\' | ε</code>','<code>E → E\' T</code> y <code>E\' → T + E\' | ε</code>','<code>E → T + E | E</code>','<code>E → T</code> y <code>T → E + T</code>'],e:'Ahora primero se reconoce T y luego se continúa con E\', que puede repetir «+ T» o terminar con ε.'},
+{q:'¿Cuándo conviene aplicar la <b>factorización por la izquierda</b>?',o:['Cuando varias alternativas empiezan igual y hay que decidir después de la parte común','Cuando la gramática tiene recursividad a la izquierda','Cuando se quiere calcular el FOLLOW de un símbolo','Cuando la entrada llega vacía'],e:'<code>A → número + número | número - número</code> pasa a <code>A → número B</code> con <code>B → + número | - número</code>.'},
+{q:'¿Qué pregunta responde el conjunto <b>FIRST</b>?',o:['¿Con qué puede comenzar esta regla?','¿Qué puede venir después de esta regla?','¿Cuántas veces puede repetirse esta regla?','¿Qué regla es recursiva a la izquierda?'],e:'FIRST significa «primero»: indica qué elementos pueden aparecer al comienzo de una regla y ayuda a elegir la producción.'},
+{q:'¿Cuándo es especialmente importante el conjunto <b>FOLLOW</b>?',o:['Cuando una regla puede producir ε, es decir, no agregar ningún símbolo','Cuando todas las reglas empiezan con un número','Cuando la gramática ya no tiene recursividad','Cuando la entrada contiene paréntesis'],e:'FOLLOW indica qué puede aparecer después de una regla. Es clave cuando existe ε, porque ayuda a decidir si conviene no consumir nada.'},
+{q:'Dada <code>F → ( E ) | número</code>, ¿cuál es FIRST(F)?',o:['{ ( , número }','{ ) , número }','{ ( , ) }','{ E , número }'],e:'F solo puede comenzar con «(» o con un número; el parser elige la producción mirando ese primer símbolo.'},
+{q:'En <b>LL(1)</b>, ¿qué significa el «1»?',o:['Que el parser decide mirando solo el siguiente símbolo de la entrada','Que la gramática tiene una única regla','Que la entrada se lee una sola vez de derecha a izquierda','Que se calcula un solo FIRST por gramática'],e:'La primera L es lectura de izquierda a derecha, la segunda es derivación por la izquierda y el 1 es un símbolo de anticipación.'},
+{q:'¿Cuál es el orden correcto para preparar la gramática antes de programar el parser?',o:['Revisar → eliminar recursividad izquierda → factorizar → analizar FIRST y FOLLOW','Factorizar → programar → calcular FOLLOW → revisar','Calcular FIRST → programar funciones → eliminar recursividad','Programar → probar → eliminar recursividad al final'],e:'Primero se prepara la gramática, luego se analizan sus decisiones con FIRST y FOLLOW y al final se lleva al código: el objetivo es una gramática LL(1).'}
+];
+let Qs,i,score,streak,bestStreak,ok,log,t0,raf,locked;
+const OKMSG=['¡Correcto!','¡Exacto!','¡Eso es!','¡Bien parseado!'];
+/* sonido */
+let AC,mute=false;
+function beep(f,d=.12,ty='sine',v=.06,w=0){if(mute)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain(),n=AC.currentTime+w;o.type=ty;o.frequency.value=f;g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.0001,n+d);o.connect(g);g.connect(AC.destination);o.start(n);o.stop(n+d)}catch(e){}}
+$('#mute').onclick=()=>{mute=!mute;$('#mute').textContent=mute?'🔇 Sin sonido':'🔊 Sonido'};
+/* récord */
+function getBest(){try{return +localStorage.getItem('parser-best')||0}catch(e){return 0}}
+function setBest(n){try{localStorage.setItem('parser-best',n)}catch(e){}}
+function showBest(){const b=getBest();$('#best').innerHTML=b?`Tu récord: <b>${b} pts</b>`:''}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));scrollTo(0,0)}
+function shuffle(a){for(let k=a.length-1;k>0;k--){const j=Math.random()*(k+1)|0;[a[k],a[j]]=[a[j],a[k]]}return a}
+function nextMult(){return 1+.25*Math.min(streak,4)}
+function setStreak(){$('#streak').textContent=streak;$('#mult').textContent='x'+nextMult().toString().replace('.',',');const b=$('#sbox');b.classList.toggle('on',streak>0);b.classList.toggle('hot',streak>=3)}
+function countTo(from,to){const t=performance.now();(function f(n){const p=Math.min(1,(n-t)/600);$('#score').textContent=Math.round(from+(to-from)*p);if(p<1)requestAnimationFrame(f)})(t)}
+function chain(){$('#chain').innerHTML=Q.map((_,k)=>{const l=log[k];return `<i class="${l?(l.good?'ok':'bad'):(k===i?'cur':'')}"></i>`}).join('')}
+function start(){Qs=Q.map(q=>({...q,o:shuffle(q.o.map((t,k)=>({t,c:k===0})))}));i=0;score=0;streak=0;bestStreak=0;ok=0;log=[];$('#score').textContent=0;setStreak();show('game');render()}
+function render(){locked=false;const q=Qs[i];chain();$('#meta').textContent=`Pregunta ${i+1} de ${Qs.length}`;$('#qtext').innerHTML=q.q;
+  $('#opts').innerHTML=q.o.map((o,k)=>`<button class="opt" data-k="${k}"><kbd>${'ABCD'[k]}</kbd><span>${o.t}</span></button>`).join('');
+  $('#opts').querySelectorAll('.opt').forEach(b=>b.onclick=()=>answer(+b.dataset.k));
+  $('#fb').hidden=true;$('#card').classList.remove('shake');t0=performance.now();cancelAnimationFrame(raf);tick()}
+function tick(){const left=Math.max(0,T-(performance.now()-t0));$('#tbar').style.transform=`scaleX(${left/T})`;$('#tnum').textContent=Math.ceil(left/1000);$('#timer').classList.toggle('low',left<5000);if(left<=0)return answer(-1);if(!locked)raf=requestAnimationFrame(tick)}
+function answer(k){if(locked)return;locked=true;cancelAnimationFrame(raf);
+  const q=Qs[i],left=Math.max(0,T-(performance.now()-t0)),good=k>=0&&q.o[k].c;let pts=0,bonus=0,mult=1;
+  $('#opts').querySelectorAll('.opt').forEach((b,n)=>{b.disabled=true;if(q.o[n].c)b.classList.add('right');else if(n===k)b.classList.add('wrong')});
+  if(good){bonus=Math.round(50*left/T);mult=nextMult();pts=Math.round((100+bonus)*mult);const from=score;score+=pts;streak++;ok++;bestStreak=Math.max(bestStreak,streak);countTo(from,score);
+    $('#score').classList.remove('bump');void $('#score').offsetWidth;$('#score').classList.add('bump');
+    const p=document.createElement('span');p.className='pop';p.textContent='+'+pts;$('#card').appendChild(p);setTimeout(()=>p.remove(),1100);
+    const b=520+streak*55;beep(b,.1);beep(b*1.5,.18,'sine',.06,.1)}
+  else{streak=0;$('#card').classList.add('shake');beep(170,.35,'sawtooth',.05)}
+  setStreak();
+  log.push({q:q.q,good,timeout:k<0,right:q.o.find(o=>o.c).t,chosen:k>=0?q.o[k].t:null});
+  chain();
+  const fb=$('#fb');fb.className='fb '+(good?'g':'b');
+  $('#fbt').textContent=good?OKMSG[Math.random()*OKMSG.length|0]:(k<0?'Se acabó el tiempo':'No es esa');
+  $('#fbp').textContent=good?`+${pts} pts · base 100 + rapidez ${bonus} · multiplicador x${mult.toString().replace('.',',')}`:'Racha reiniciada. La respuesta correcta está en verde.';
+  $('#fbe').innerHTML=q.e;$('#next').textContent=i===Qs.length-1?'Ver mi resultado':'Siguiente pregunta';fb.hidden=false;$('#next').focus({preventScroll:true});
+  fb.scrollIntoView({behavior:RM?'auto':'smooth',block:'nearest'})}
+function next(){if(!locked)return;i++;i>=Qs.length?finish():render()}
+function finish(){show('end');const pct=ok/Qs.length;const prev=getBest();if(score>prev)setBest(score);
+  $('#fscore').textContent=score;$('#sOk').textContent=`${ok}/${Qs.length}`;$('#sStreak').textContent=bestStreak;$('#sBest').textContent=Math.max(prev,score);
+  $('#rank').textContent=ok===10?'Arquitecto de parsers':ok>=8?'Analizador LL(1)':ok>=6?'Constructor de funciones':ok>=4?'Aprendiz de gramáticas':'Recursión sin fin: repasa e inténtalo otra vez';
+  $('#review').innerHTML=log.map(l=>`<li><b class="${l.good?'tag-g':'tag-b'}">${l.good?'✓':'✗'}</b> ${l.q}<br>${l.good?'':(l.chosen?`Tu respuesta: ${l.chosen}<br>`:'Sin respuesta (tiempo agotado)<br>')}Correcta: ${l.right}</li>`).join('');
+  if(pct>=.7){confetti();beep(523,.15);beep(659,.15,'sine',.06,.15);beep(784,.3,'sine',.06,.3)}else beep(300,.3,'triangle')}
+function confetti(){if(RM)return;const c=$('#cf'),x=c.getContext('2d');c.width=innerWidth;c.height=innerHeight;const cl=['#6ee7ff','#a78bfa','#5ee7a5','#ffb86b','#ff6b81'];
+  const P=Array.from({length:150},()=>({x:innerWidth/2,y:innerHeight*.35,vx:(Math.random()-.5)*17,vy:-Math.random()*14-4,s:5+Math.random()*6,c:cl[Math.random()*5|0],r:Math.random()*6}));let f=0;
+  (function loop(){x.clearRect(0,0,c.width,c.height);P.forEach(p=>{p.vy+=.35;p.x+=p.vx;p.y+=p.vy;p.r+=.2;x.fillStyle=p.c;x.save();x.translate(p.x,p.y);x.rotate(p.r);x.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6);x.restore()});if(++f<180)requestAnimationFrame(loop);else x.clearRect(0,0,c.width,c.height)})()}
+$('#go').onclick=start;$('#again').onclick=start;$('#next').onclick=next;
+document.addEventListener('keydown',e=>{
+  if(!$('#game').classList.contains('on'))return;
+  const k='1234abcd'.indexOf(e.key.toLowerCase());
+  if(k>=0&&!locked){answer(k%4);return}
+  if((e.key==='Enter'||e.key===' ')&&locked){e.preventDefault();next()}
+});
+showBest();
+</script>
+</body>
+</html>
